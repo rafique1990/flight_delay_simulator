@@ -1,0 +1,32 @@
+# Simulation configuration
+
+# This config tell you : if you  want to :
+# run a fixed simulation called deterministic (fixed values) or
+#   monte_carlo (random sampling) - runs n simulations by generating the departure delay(d) ,extra time in air(i) and maximum time ground time (e.g. loading/unloading)
+mode: monte_carlo
+
+# Number of Monte Carlo runs (ignored in deterministic mode)
+n_runs: 3
+
+# Delay distributions (Normal only)
+departure_delay:
+  mean: 10
+  std: 3
+inflight_delay:
+  mean: 5
+  std: 2
+# Minimum turnaround time between flights (in minutes)
+min_turnaround: 45
+
+# I/O
+input_schedule: "input/test_monte_input.csv"  
+output_dir: "results"
+per_run_prefix: "run_"
+aggregated_output: "aggregated.csv"
+aircraft_id:
+# Visualization
+plot: true
+bins: 20
+
+# Environment (optional, defaults to .env values)---
+storage_backend: "local"  # or "s3"

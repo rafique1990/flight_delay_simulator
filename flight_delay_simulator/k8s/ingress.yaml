@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: flightrobustness-ingress
+  namespace: ${K8S_NAMESPACE:-poc}
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  rules:
+    - host: ${APP_HOST:-flightrobustness.yourdomain.com}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: flightrobustness-service
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - ${APP_HOST:-flightrobustness.yourdomain.com}
+      secretName: flightrobustness-tls

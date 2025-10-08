@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flightrobustness
+  namespace: ${K8S_NAMESPACE:-poc}
+  labels:
+    app: flightrobustness
+spec:
+  replicas: ${REPLICAS:-2}
+  selector:
+    matchLabels:
+      app: flightrobustness
+  template:
+    metadata:
+      labels:
+        app: flightrobustness
+    spec:
+      containers:
+        - name: flightrobustness-api
+          image: ghcr.io/${GITHUB_REPOSITORY:-rafiquenazir/flightrobustness}:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: flightrobustness-config
+            - secretRef:
+                name: flightrobustness-secrets
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "512Mi"
+      volumes:
+        - name: data
+          emptyDir: {}

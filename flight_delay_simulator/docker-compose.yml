@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  # Backend API service (FastAPI + Uvicorn)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flightrobustness-api
+    command: >
+      sh -c "poetry run uvicorn flightrobustness.interfaces.api:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - cli
+    restart: on-failure
+
+  # CLI utility (for testing Monte Carlo runs locally)
+  cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flightrobustness-cli
+    command: >
+      sh -c "poetry run simulate-cli --config config.yaml"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    restart: on-failure
+
+networks:
+  default:
+    name: flightrobustness-net

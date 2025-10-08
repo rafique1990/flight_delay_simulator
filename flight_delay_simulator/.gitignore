@@ -1,0 +1,62 @@
+# === Standard Python Ignores ===
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments
+.venv/
+env/
+venv/
+ENV/
+
+# Distribution and packaging
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# IDE and Editor Files
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*.ipynb-autosave
+
+# MyPy and Testing
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.nox/
+
+# PyInstaller/Nuitka/etc. for tarball/zip creation
+*.spec
+*.dist
+__pyinstaller/
+
+
+# === OS and System Files ===
+# Linux
+*~
+
+# macOS
+.DS_Store
+
+
+# === Project Specific Ignores ===
+# Ignore the generated results/ output directory
+# Raw input data files ('schedule 2.csv', 'tiny_schedule.csv') are kept,
+# but the outputs should be ignored.
+data/results/
+
+# Ignore local configuration files that might contain secrets or paths
+# (if not already handled by config.yaml)
+local_settings.py
+*.local.yml

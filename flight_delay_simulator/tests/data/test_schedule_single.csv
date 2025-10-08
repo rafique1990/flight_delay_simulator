@@ -1,0 +1,3 @@
+LegId,Origin,Destination,AirlineDesignator,FlightNbr,AircraftId,STD,STA,Blocktime,Distance,SubfleetType,StopIdentifier,FractionBlock,StartPnrRange,EligibleBc
+0,FRA,MUC,CLF,SRE123,AC1,600,700,100,350.0,CR9,6883,492.4,CUUQ26ZG,true
+1,MUC,FRA,CLF,SRE124,AC1,750,850,100,350.0,CR9,6883,492.4,CUUQ26ZG,true
