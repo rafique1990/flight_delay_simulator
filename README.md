@@ -173,7 +173,7 @@ This codebase follows **SOLID principles** and modern Python best practices:
 | **Concurrency** | multiprocessing | Parallel Monte Carlo runs |
 | **Config Management** | YAML + pydantic | Type-safe configuration |
 | **Testing** | pytest + pytest-asyncio | Comprehensive test suite |
-| **Packaging** | Poetry | Dependency management |
+| **Packaging** | UV | Ultra-fast dependency management |
 | **Containerization** | Docker + Docker Compose | Deployment |
 | **Orchestration** | Kubernetes | Cloud scaling |
 | **CI/CD** | GitHub Actions | Automated testing |
@@ -186,7 +186,7 @@ This codebase follows **SOLID principles** and modern Python best practices:
 .
 ├── config.yaml                      # Simulation configuration
 ├── .env                             # Environment variables
-├── pyproject.toml                   # Poetry dependencies
+├── pyproject.toml                   # Project dependencies
 ├── data/
 │   ├── input/                       # Input CSV files
 │   │   └── schedule_2.csv
@@ -236,29 +236,22 @@ This codebase follows **SOLID principles** and modern Python best practices:
 | Tool | Version | Purpose |
 |------|---------|---------|
 | Python | 3.10+ | Core runtime |
-| Poetry | 1.8+ | Dependency management |
-| Docker | 24+ | Container builds |
-| Minikube | 1.32+ | Local Kubernetes (optional) |
+| UV | Latest | Ultra-fast dependency management |
+| Docker | 24+ | Container builds (optional) |
 
 ### Setup
 
 ```bash
 git clone <repo-url>
 cd flight_delay_simulator
-poetry env use 3.10
-poetry install
-```
-
-**PyCharm users** (recommended):
-```bash
-poetry config virtualenvs.in-project true
-poetry install
+pip install uv
+uv pip install -e ".[dev]"
 ```
 
 **Verification**:
 ```bash
-poetry run python -V
-poetry run pytest -v  # Should show 53 passed
+python -V
+pytest -v  # Should show 53 passed
 ```
 
 ---
@@ -312,12 +305,12 @@ S3_OUTPUT_BUCKET=flight-robustness-output
 
 **Basic usage**:
 ```bash
-poetry run simulate-cli --config config.yaml
+simulate-cli --config config.yaml
 ```
 
 **With overrides**:
 ```bash
-poetry run simulate-cli --config config.yaml \
+simulate-cli --config config.yaml \
   --mode monte_carlo \
   --runs 100 \
   --aircraftid AC001
@@ -327,7 +320,7 @@ poetry run simulate-cli --config config.yaml \
 
 **Start server**:
 ```bash
-poetry run uvicorn flightrobustness.interfaces.api:app \
+uvicorn flightrobustness.interfaces.api:app \
   --host 0.0.0.0 \
   --port 8000 \
   --reload
@@ -350,12 +343,12 @@ curl -X POST "http://localhost:8000/api/v1/simulate" \
 
 **Run all tests**:
 ```bash
-poetry run pytest -v
+pytest -v
 ```
 
 **With coverage**:
 ```bash
-poetry run pytest --cov=src/flightrobustness --cov-report=term-missing
+pytest --cov=src/flightrobustness --cov-report=term-missing
 ```
 
 **Test summary**: ✅ **53/53 tests passing**
@@ -382,9 +375,7 @@ docker build -t flightrobustness:latest .
 ```bash
 docker run --rm -p 8000:8000 \
   -v "$PWD/data:/app/data" \
-  flightrobustness:latest \
-  poetry run uvicorn flightrobustness.interfaces.api:app \
-  --host 0.0.0.0 --port 8000
+  flightrobustness:latest
 ```
 
 **Run CLI**:
@@ -392,30 +383,12 @@ docker run --rm -p 8000:8000 \
 docker run --rm \
   -v "$PWD/data:/app/data" \
   flightrobustness:latest \
-  poetry run simulate-cli --config config.yaml
+  simulate-cli --config config.yaml
 ```
 
 **Docker Compose**:
 ```bash
 docker compose up
-```
-
----
-
-## ☸️ Kubernetes Deployment
-
-**Deploy to Minikube**:
-```bash
-minikube start --cpus=4 --memory=6g
-eval $(minikube docker-env)
-docker build -t flightrobustness:local .
-kubectl apply -f k8s/
-minikube service flightrobustness-service -n poc --url
-```
-
-**Access API**:
-```
-http://127.0.0.1:<port>/docs
 ```
 
 ---
@@ -460,14 +433,13 @@ http://127.0.0.1:<port>/docs
 
 | Task | Command |
 |------|---------|
-| **Install** | `poetry install` |
-| **Run CLI** | `poetry run simulate-cli --config config.yaml` |
-| **Run API** | `poetry run uvicorn flightrobustness.interfaces.api:app --reload` |
-| **Run Tests** | `poetry run pytest -v` |
-| **Coverage** | `poetry run pytest --cov=src/flightrobustness` |
+| **Install** | `uv pip install -e ".[dev]"` |
+| **Run CLI** | `simulate-cli --config config.yaml` |
+| **Run API** | `uvicorn flightrobustness.interfaces.api:app --reload` |
+| **Run Tests** | `pytest -v` |
+| **Coverage** | `pytest --cov=src/flightrobustness` |
 | **Docker Build** | `docker build -t flightrobustness .` |
 | **Docker Compose** | `docker compose up` |
-| **K8s Deploy** | `kubectl apply -f k8s/` |
 
 ---
 

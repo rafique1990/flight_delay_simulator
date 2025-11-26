@@ -2,8 +2,8 @@
 
 help:
 	@echo "Available targets:"
-	@echo "  install         - Install core dependencies with Poetry"
-	@echo "  install-dev     - Install development dependencies with Poetry"
+	@echo "  install         - Install core dependencies with UV"
+	@echo "  install-dev     - Install development dependencies with UV"
 	@echo "  build           - Build Docker image (tagged flight-simulator:latest)"
 	@echo "  up              - Build and start Docker services"
 	@echo "  down            - Stop and remove containers and networks"
@@ -21,10 +21,10 @@ help:
 	@echo "  api             - Run FastAPI in production mode"
 
 install:
-	poetry install --no-dev
+	uv pip install -e .
 
 install-dev:
-	poetry install
+	uv pip install -e ".[dev]"
 
 build:
 	docker build -t flight-simulator:latest .
@@ -46,16 +46,16 @@ clean-docker:
 	docker compose down -v --rmi all
 
 test:
-	python -m pytest -v --cov=src/flightrobustness --cov-report=html --cov-report=term-missing
+	pytest -v --cov=src/flightrobustness --cov-report=html --cov-report=term-missing
 
 lint:
-	python -m black --check src tests
-	python -m isort --check-only src tests
-	python -m flake8 src tests
+	black --check src tests
+	isort --check-only src tests
+	flake8 src tests
 
 format:
-	python -m black src tests
-	python -m isort src tests
+	black src tests
+	isort src tests
 
 simulate-det:
 	python -m flightrobustness.interfaces.cli --config config.yaml --mode deterministic
@@ -74,7 +74,7 @@ clean-results:
 	rm -rf data/results/*.png
 
 dev:
-	python -m uvicorn flightrobustness.interfaces.api:app --reload --host 0.0.0.0 --port 8000
+	uvicorn flightrobustness.interfaces.api:app --reload --host 0.0.0.0 --port 8000
 
 api:
-	python -m uvicorn flightrobustness.interfaces.api:app --host 0.0.0.0 --port 8000
+	uvicorn flightrobustness.interfaces.api:app --host 0.0.0.0 --port 8000
