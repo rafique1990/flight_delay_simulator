@@ -1,12 +1,11 @@
 import sys
 import pytest
 import polars as pl
+import matplotlib
+matplotlib.use("Agg")
 from pathlib import Path
 from fastapi.testclient import TestClient
 
-###TODO: Store the test files and test results in appropraite directories at the moment ,there is issue where the test results are stored.
-
-# Ensure src/ is importable
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from flightrobustness.core.models import Config, DelayDistribution

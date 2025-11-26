@@ -2,9 +2,9 @@ name: CI/CD - Flight Robustness Simulator
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
 
 jobs:
   build-test-deploy:

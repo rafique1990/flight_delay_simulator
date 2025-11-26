@@ -2,9 +2,8 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import polars as pl
 
-##TODO: Testing
 def plot_arrival_delay_distribution(df: pl.DataFrame, output_dir: Path, bins: int = 20):
-    """Plot histogram of simulated arrival delays."""
+    """Generate histogram of actual arrival times."""
     try:
         plt.figure(figsize=(8, 5))
         df["ActualTimeOfArrival"].to_pandas().hist(bins=bins)

@@ -1,5 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
+from unittest.mock import patch
+from pathlib import Path
 from flightrobustness.interfaces.api import app, API_DATA_DIR, RESULTS_DIR
 
 
@@ -103,3 +105,33 @@ def test_cleanup_uploads_creates_and_deletes(tmp_path):
     assert "deleted_files" in data
     assert "temp_test.txt" in data["deleted_files"]
     assert dummy.exists() is False
+
+
+def test_run_simulation_api_failure(dummy_csv_file):
+    """Test that API returns 500 if simulation fails."""
+    with open(dummy_csv_file, "rb") as f:
+        files = {"csv_file": ("dummy_schedule.csv", f, "text/csv")}
+        
+        # Mock run_simulations to raise exception
+        with patch("flightrobustness.interfaces.api.run_simulations", side_effect=Exception("Sim Error")):
+            resp = client.post("/api/v1/simulate", files=files)
+            
+    assert resp.status_code == 500
+    assert "Simulation failed: Sim Error" in resp.json()["detail"]
+
+
+def test_cleanup_uploads_partial_failure(tmp_path):
+    """Test cleanup handles deletion errors gracefully."""
+    API_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    dummy = API_DATA_DIR / "locked.txt"
+    dummy.write_text("test")
+    
+    # Mock unlink to raise exception for this file
+    with patch("aiofiles.os.remove", side_effect=Exception("Locked")):
+        resp = client.delete("/api/v1/uploads/cleanup")
+        
+    assert resp.status_code == 200
+    # Should complete without crashing, but file won't be in deleted list
+    data = resp.json()
+    assert "locked.txt" not in data["deleted_files"]
+

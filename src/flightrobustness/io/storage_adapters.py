@@ -24,24 +24,16 @@ class LocalDiskAdapter:
     """Handles file I/O on the local filesystem."""
 
     def _get_local_path(self, path: str) -> str:
-        """
-        Safely resolve both absolute and relative paths.
-        - If `path` is absolute, return as-is.
-        - If path already begins under LOCAL_DATA_DIR, avoid double prefixing e.g data/data/results.
-        """
-        # Convert to normalized path object
+        """Resolve absolute or relative paths safely."""
         path = os.path.normpath(path)
         base = os.path.normpath(LOCAL_DATA_DIR)
 
-        # Case 1: Absolute path, return directly
         if os.path.isabs(path):
             return path
 
-        # Case 2: Already starts with LOCAL_DATA_DIR (avoid double-prepending data/data/results)
         if path.startswith(base):
             return path
 
-        # Case 3: Relative → join with base
         return os.path.join(base, path)
 
     def read_csv(self, path: str, use_polars=False, **kwargs):
@@ -60,15 +52,15 @@ class LocalDiskAdapter:
         return full_path
 
 
-##TODO: Test it after the deployment on AWS S3.
 class S3Adapter:
-    """Basic S3 wrapper using boto3."""
+    """S3 storage adapter using boto3."""
     def __init__(self):
         if not S3_AVAILABLE:
             raise StorageAdapterError("boto3 not installed")
         self.s3 = boto3.client("s3", region_name=AWS_REGION)
 
     def _bucket_key(self, path: str, read=False) -> Tuple[str, str]:
+        """Extract S3 bucket and key from path."""
         bucket = S3_INPUT_BUCKET if read else S3_OUTPUT_BUCKET
         if not bucket:
             raise StorageAdapterError("S3 bucket not configured in ENV.")
