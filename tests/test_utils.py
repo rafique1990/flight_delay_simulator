@@ -6,7 +6,7 @@ from flightrobustness.utils.logger import setup_logger
 from flightrobustness.core.models import Config, DelayDistribution
 
 def test_load_configuration_from_yaml(tmp_path):
-    """✅ Config YAML should load into Config dataclass properly."""
+    """Config YAML should load into Config dataclass properly."""
     yaml_path = tmp_path / "config.yaml"
     yaml_content = {
         "mode": "deterministic",
@@ -29,7 +29,7 @@ def test_load_configuration_from_yaml(tmp_path):
 
 
 def test_load_configuration_from_dict_merges_delays():
-    """✅ Dict input with nested delays should be converted to DelayDistribution objects."""
+    """Dict input with nested delays should be converted to DelayDistribution objects."""
     cfg_dict = {
         "mode": "monte_carlo",
         "n_runs": 5,
@@ -46,19 +46,19 @@ def test_load_configuration_from_dict_merges_delays():
 
 
 def test_load_configuration_invalid_source():
-    """❌ Invalid type (non-dict/non-str) should raise ValueError."""
+    """Invalid type (non-dict/non-str) should raise ValueError."""
     with pytest.raises(ValueError):
         load_and_merge_config(12345)
 
 def test_logger_setup_creates_logger():
-    """✅ setup_logger should create or return a valid logger with correct level."""
+    """setup_logger should create or return a valid logger with correct level."""
     logger = setup_logger("DEBUG")
     assert isinstance(logger, logging.Logger)
     assert logger.level == logging.DEBUG
 
 
 def test_logger_is_singleton_behavior():
-    """✅ setup_logger should not duplicate handlers on multiple calls."""
+    """setup_logger should not duplicate handlers on multiple calls."""
     logger1 = setup_logger("INFO")
     initial_handlers = len(logger1.handlers)
 
@@ -69,6 +69,6 @@ def test_logger_is_singleton_behavior():
 
 
 def test_logger_honors_case_insensitivity():
-    """✅ setup_logger should handle lowercase level names."""
+    """setup_logger should handle lowercase level names."""
     logger = setup_logger("warning")
     assert logger.level == logging.WARNING

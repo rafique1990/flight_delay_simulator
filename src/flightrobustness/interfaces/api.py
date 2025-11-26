@@ -1,11 +1,15 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, BackgroundTasks
+from fastapi.responses import JSONResponse
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Dict, Any
 from pathlib import Path
 import os
 import shutil
 import yaml
 import uuid
+import aiofiles
+import aiofiles.os
 
 from flightrobustness.core.models import Config, DelayDistribution
 from flightrobustness.core.simulator import run_simulations
@@ -13,13 +17,15 @@ from flightrobustness.io.storage_adapters import (
     STORAGE_BACKEND,
 )
 from flightrobustness.utils.config_loader import load_and_merge_config
+from flightrobustness.utils.logger import setup_logger
+
+logger = setup_logger()
 
 
 app = FastAPI(title="Flight Robustness Simulator", version="1.0")
 
-# Base directory for API uploads
+# Base uploads directory
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-# user uploaded config.yaml or input files will be stored here
 API_DATA_DIR = PROJECT_ROOT / "data/api/uploads"
 RESULTS_DIR = PROJECT_ROOT / "data/results"
 
@@ -28,7 +34,7 @@ RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class SimulationRunRequest(BaseModel):
-    """Request model for JSON-based simulation runs."""
+    """JSON request payload for simulation runs."""
     mode: str = "monte_carlo"
     n_runs: int = 3
     min_turnaround: int = 45
@@ -41,18 +47,15 @@ class SimulationRunRequest(BaseModel):
 
 
 class SimulationRunResponse(BaseModel):
-    """Response model for completed simulations."""
+    """Simulation completion response with result paths."""
     message: str
     combined_results_path: str
-    aggregated_results_path: str # Tells user where the simulation results can be found
-    storage_backend: str = STORAGE_BACKEND # local or S3- useful if we deploy the solution on cloud (aws)
+    aggregated_results_path: str
+    storage_backend: str = STORAGE_BACKEND
 
-# Just a friendly UI when user lands on the api endpoint
 @app.get("/")
 def root_service():
-    """
-    Root endpoint — returns basic service info and available routes.
-    """
+    """Service metadata and available endpoint overview."""
     return {
         "service": "Flight Robustness Simulator API",
         "version": "1.0",
@@ -72,13 +75,13 @@ def root_service():
 
 @app.get("/health")
 def health_check():
-    """Only for health check,if backend is running"""
+    """Health check endpoint."""
     return {"status": "ok", "backend": STORAGE_BACKEND}
 
 
 @app.get("/api/v1/config")
 def get_default_config():
-    """Returns default YAML config template.Useful if user needs to know the structure of the yaml.config"""
+    """Return default configuration template."""
     return {
         "mode": "monte_carlo",
         "n_runs": 3,
@@ -88,7 +91,6 @@ def get_default_config():
         "plot": True,
     }
 
-# main service for running the simulation
 @app.post("/api/v1/simulate", response_model=SimulationRunResponse)
 async def run_simulation_api(
     csv_file: UploadFile = File(..., description="Flight schedule CSV file (mandatory)"),
@@ -99,29 +101,26 @@ async def run_simulation_api(
     aircraft_id: Optional[str] = Form(None),
     plot: Optional[bool] = Form(True),
 ):
-    """
-    Run simulation using:
-      - mandatory flight schedule CSV file
-      - optional config.yaml file
-      - or form fields overriding defaults
-    """
+    """Execute simulation with uploaded schedule and optional configuration."""
     cfg_dict = {}
 
-    # Save uploaded config.yaml . We use data/api/uploads dir.
     if config_file:
         cfg_path = API_DATA_DIR / f"{uuid.uuid4()}_{config_file.filename}"
-        with open(cfg_path, "wb") as f:
-            shutil.copyfileobj(config_file.file, f)
-        with open(cfg_path, "r") as f:
-            cfg_dict = yaml.safe_load(f) or {}
+        async with aiofiles.open(cfg_path, "wb") as f:
+            while content := await config_file.read(1024 * 1024):
+                await f.write(content)
+        
+        async with aiofiles.open(cfg_path, "r") as f:
+            content = await f.read()
+            # yaml.safe_load is CPU bound/blocking, run in threadpool
+            cfg_dict = await run_in_threadpool(yaml.safe_load, content) or {}
 
-    # 2Save uploaded CSV -always required
     csv_path = API_DATA_DIR / f"{uuid.uuid4()}_{csv_file.filename}"
-    with open(csv_path, "wb") as f:
-        shutil.copyfileobj(csv_file.file, f)
+    async with aiofiles.open(csv_path, "wb") as f:
+        while content := await csv_file.read(1024 * 1024):
+            await f.write(content)
+            
     cfg_dict["input_schedule"] = str(csv_path)
-
-    # like cli these options are configurable
     cfg_dict.update({
         "mode": mode,
         "n_runs": n_runs,
@@ -133,21 +132,20 @@ async def run_simulation_api(
 
     cleaned = {k: v for k, v in cfg_dict.items() if v not in (None, "", {})}
 
-    # Runs the main simulation
+    # Run simulation in a separate thread to avoid blocking the event loop
     try:
-        cfg = load_and_merge_config(cleaned)
-        combined, aggregated = run_simulations(cfg)
+        cfg = await run_in_threadpool(load_and_merge_config, cleaned)
+        combined_df, aggregated_df = await run_in_threadpool(run_simulations, cfg)
     except Exception as e:
+        logger.error(f"Simulation failed: {e}")
         raise HTTPException(status_code=500, detail=f"Simulation failed: {e}")
 
-    # User uploaded config.yaml are not needed .Just a Cleanup.
     if config_file:
         try:
-            os.remove(cfg_path)
+            await aiofiles.os.remove(cfg_path)
         except Exception:
             pass
 
-    #After running the simulations returns the path ,where to  find the csv files.
     combined_path = str(RESULTS_DIR / "modified_input_with_ActualTimeOfArrival.csv")
     aggregated_path = str(RESULTS_DIR / cfg.aggregated_output)
 
@@ -159,13 +157,23 @@ async def run_simulation_api(
 
 
 @app.delete("/api/v1/uploads/cleanup")
-def cleanup_uploads():
-    """Deletes temporary uploaded files under data/api/uploads."""
+async def cleanup_uploads():
+    """Remove temporary upload files."""
     deleted = []
-    for f in API_DATA_DIR.glob("*"):
+    # glob is blocking, but usually fast. For strict async, we could run in threadpool.
+    # However, iterating and unlinking is better done carefully.
+    # Let's use run_in_threadpool for the glob and iteration if we want to be super safe,
+    # or just use aiofiles.os.remove for each file.
+    # Since glob returns an iterator, we can't easily await it.
+    # We'll collect files first (sync) then remove async.
+    
+    files = list(API_DATA_DIR.glob("*"))
+    
+    for f in files:
         try:
-            f.unlink()
+            await aiofiles.os.remove(f)
             deleted.append(f.name)
         except Exception:
             continue
     return {"deleted_files": deleted, "directory": str(API_DATA_DIR)}
+

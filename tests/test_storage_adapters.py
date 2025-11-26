@@ -1,4 +1,5 @@
 import io
+import os
 import pytest
 import pandas as pd
 import polars as pl
@@ -6,6 +7,8 @@ from unittest.mock import MagicMock, patch
 
 from flightrobustness.io.storage_adapters import (
     S3Adapter,
+    LocalDiskAdapter,
+    StorageAdapterError,
     get_storage,
 )
 
@@ -71,3 +74,41 @@ def test_get_storage_returns_s3(monkeypatch):
         adapter = get_storage()
         mock_class.assert_called_once()
         assert adapter == "mock_s3"
+
+
+def test_local_disk_adapter_path_resolution(monkeypatch, tmp_path):
+    """Test LocalDiskAdapter path resolution logic."""
+    monkeypatch.setattr("flightrobustness.io.storage_adapters.LOCAL_DATA_DIR", str(tmp_path))
+    adapter = LocalDiskAdapter()
+    
+    # Case 1: Absolute path
+    abs_path = str(tmp_path / "abs/file.csv")
+    assert adapter._get_local_path(abs_path) == abs_path
+    
+    # Case 2: Relative path
+    rel_path = "rel/file.csv"
+    expected = str(tmp_path / "rel/file.csv")
+    assert adapter._get_local_path(rel_path) == expected
+    
+    # Case 3: Already starts with LOCAL_DATA_DIR (simulated)
+    joined_path = str(tmp_path / "data/file.csv")
+    assert adapter._get_local_path(joined_path) == joined_path
+
+
+def test_s3_adapter_missing_boto3(monkeypatch):
+    """Test S3Adapter raises error if boto3 is missing."""
+    monkeypatch.setattr("flightrobustness.io.storage_adapters.S3_AVAILABLE", False)
+    with pytest.raises(StorageAdapterError) as exc:
+        S3Adapter()
+    assert "boto3 not installed" in str(exc.value)
+
+
+def test_s3_adapter_missing_bucket(monkeypatch, mock_boto3):
+    """Test S3Adapter raises error if bucket is not configured."""
+    monkeypatch.setattr("flightrobustness.io.storage_adapters.S3_INPUT_BUCKET", None)
+    monkeypatch.setattr("flightrobustness.io.storage_adapters.S3_OUTPUT_BUCKET", None)
+    
+    adapter = S3Adapter()
+    with pytest.raises(StorageAdapterError) as exc:
+        adapter.read_csv("file.csv")
+    assert "S3 bucket not configured" in str(exc.value)

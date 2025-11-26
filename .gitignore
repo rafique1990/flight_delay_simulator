@@ -60,3 +60,7 @@ data/results/
 # (if not already handled by config.yaml)
 local_settings.py
 *.local.yml
+.env
+
+# API Uploads
+data/api/uploads/
