@@ -1,22 +1,29 @@
-from flightrobustness.io.storage_adapters import get_storage
 from typing import Union
 import pandas as pd
 import polars as pl
+from flightrobustness.io.storage_adapters import get_storage
+from flightrobustness.core.exceptions import DataSourceError
 
 class FileWriter:
-    """handles local or S3 outputs."""
+    """
+    DataFrame writer with local and S3 backend support.
+    Implements ResultRepository protocol.
+    """
+    
+    def __init__(self, storage=None):
+        self.storage = storage or get_storage()
 
-    @staticmethod
-    def write_csv(df: Union[pd.DataFrame, pl.DataFrame], path: str, **kwargs) -> str:
-        """
-        Writes a DataFrame using the active storage backend (LocalDisk or S3) and returns the final path (local or s3://...).
-        """
-        storage = get_storage()
+    def save_results(self, df: pl.DataFrame, path: str) -> str:
+        """Save results to CSV."""
+        return self.write_csv(df, path)
+
+    def write_csv(self, df: Union[pd.DataFrame, pl.DataFrame], path: str, **kwargs) -> str:
+        """Write DataFrame to CSV using configured storage backend."""
         if df is None or (hasattr(df, "is_empty") and df.is_empty()):
-            raise ValueError("Cannot write empty DataFrame.")
+            raise DataSourceError("Cannot write empty DataFrame.")
         try:
-            final_path = storage.write_csv(df, path, **kwargs)
+            final_path = self.storage.write_csv(df, path, **kwargs)
             print(f"Written successfully: {final_path}")
             return final_path
         except Exception as e:
-            raise RuntimeError(f"Failed to write file: {path} ({e})") from e
+            raise DataSourceError(f"Failed to write file: {path} ({e})") from e

@@ -6,11 +6,7 @@ from flightrobustness.io.file_reader import FileReader
 
 
 def main():
-    # user can provide confirgurable options for running the simulations from the cmd.e.g :
-    # poetry run simulate-cli --config config.yaml
-    # poetry run simulate-cli --config config.yaml --runs 3 --mode deterministic
-    # poetry run simulate-cli --config config.yaml --runs 3 --mode deterministic --output data/results
-    #TDODO: Test All the possible combinations of the cmd arguments
+    """Flight delay simulator command-line interface."""
     parser = argparse.ArgumentParser(description="Flight Delay Simulator")
     parser.add_argument("--config", default="config.yaml", help="YAML config path")
     parser.add_argument("--mode", choices=["deterministic", "monte_carlo"])
@@ -21,7 +17,8 @@ def main():
     args = parser.parse_args()
 
     try:
-        cfg_yaml = FileReader.read_yaml(args.config)
+        reader = FileReader()
+        cfg_yaml = reader.read_yaml(args.config)
         cfg = Config.from_dict(cfg_yaml, args)
 
     except Exception as e:
@@ -32,7 +29,7 @@ def main():
     if args.input: cfg.input_schedule = args.input
     if args.output: cfg.output_dir = args.output
     if args.aircraftid: cfg.aircraft_id = args.aircraftid
-    if args.runs: cfg.n_runs = args.runs
+    if args.runs: cfg.n_runs = int(args.runs)
 
     print(f"\nRunning simulation: mode={cfg.mode}, runs={cfg.n_runs}\n")
 
