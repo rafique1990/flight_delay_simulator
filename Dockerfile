@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 COPY . /app
-RUN pip install --no-cache-dir poetry && poetry install --no-root
+RUN pip install --no-cache-dir uv && uv pip install --system -e .
 
 # Default: FastAPI mode
-CMD ["poetry", "run", "uvicorn", "flightrobustness.interfaces.api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "flightrobustness.interfaces.api:app", "--host", "0.0.0.0", "--port", "8000"]
